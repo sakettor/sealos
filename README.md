@@ -3,7 +3,7 @@ SealOS is an operating system (apparently) that runs in 64 bits. It is very earl
 
 Outputting text;
 
-Loading;
+Loading an IDT;
 
 Not crashing;
 
