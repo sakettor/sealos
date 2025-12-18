@@ -5,6 +5,7 @@
 #include "ft/flanterm.h"
 #include "ft/flanterm_backends/fb.h"
 #include "font/font.h"
+#include "idt/idt.h"
 
 struct flanterm_context *ft_ctx = NULL;
 
@@ -104,6 +105,7 @@ void output(char* str) {
     flanterm_write(ft_ctx, str, num);
 }
 
+
 // Halt and catch fire function.
 static void hcf(void) {
     for (;;) {
@@ -120,8 +122,6 @@ static void hcf(void) {
 // The following will be our kernel's entry point.
 // If renaming kmain() to something else, make sure to change the
 // linker script accordingly.
-
-/* entry function */
 
 void kmain(void) {
     // Ensure the bootloader actually understands our base revision (see spec).
@@ -164,7 +164,9 @@ void kmain(void) {
         0, 0,
         0, FLANTERM_FB_ROTATE_0
     );
-    output("that works apparently");
+    load_idt();
+    test_idt();
+    output("handler didnt work");
 
     // We're done, just hang...
     hcf();
