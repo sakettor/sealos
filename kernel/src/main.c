@@ -2,6 +2,11 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <limine.h>
+#include "ft/flanterm.h"
+#include "ft/flanterm_backends/fb.h"
+#include "font/font.h"
+
+struct flanterm_context *ft_ctx = NULL;
 
 // Set the base revision to 4, this is recommended as this is the latest
 // base revision described by the Limine boot protocol specification.
@@ -86,6 +91,18 @@ int memcmp(const void *s1, const void *s2, size_t n) {
 
     return 0;
 }
+/* utilities and stuff */
+size_t strlen(const char *str) {
+    size_t len = 0;
+    while (str[len])
+        len++;
+    return len;
+}
+
+void output(char* str) {
+    int num = strlen(str);
+    flanterm_write(ft_ctx, str, num);
+}
 
 // Halt and catch fire function.
 static void hcf(void) {
@@ -103,6 +120,9 @@ static void hcf(void) {
 // The following will be our kernel's entry point.
 // If renaming kmain() to something else, make sure to change the
 // linker script accordingly.
+
+/* entry function */
+
 void kmain(void) {
     // Ensure the bootloader actually understands our base revision (see spec).
     if (LIMINE_BASE_REVISION_SUPPORTED(limine_base_revision) == false) {
@@ -115,14 +135,36 @@ void kmain(void) {
         hcf();
     }
 
-    // Fetch the first framebuffer.
+    // here goes the framebuffer 
     struct limine_framebuffer *framebuffer = framebuffer_request.response->framebuffers[0];
+    // defining everything
+    uint32_t *framebuffer_ptr = (uint32_t *)framebuffer->address;
+    size_t width  = (size_t)framebuffer->width;
+    size_t height = (size_t)framebuffer->height;
+    size_t pitch  = (size_t)framebuffer->pitch;
+    uint8_t red_mask_size   = framebuffer->red_mask_size;
+    uint8_t red_mask_shift  = framebuffer->red_mask_shift;
+    uint8_t green_mask_size = framebuffer->green_mask_size;
+    uint8_t green_mask_shift= framebuffer->green_mask_shift;
+    uint8_t blue_mask_size  = framebuffer->blue_mask_size;
+    uint8_t blue_mask_shift = framebuffer->blue_mask_shift;
 
-    // Note: we assume the framebuffer model is RGB with 32-bit pixels.
-    for (size_t i = 0; i < 100; i++) {
-        volatile uint32_t *fb_ptr = framebuffer->address;
-        fb_ptr[i * (framebuffer->pitch / 4) + i] = 0xffffff;
-    }
+    ft_ctx = flanterm_fb_init(
+        NULL,
+        NULL,
+        framebuffer_ptr, width, height, pitch,
+        red_mask_size, red_mask_shift,
+        green_mask_size, green_mask_shift,
+        blue_mask_size, blue_mask_shift,
+        NULL,
+        NULL, NULL,
+        NULL, NULL,
+        NULL, NULL,
+        terminal_font, 8, 16, 1,
+        0, 0,
+        0, FLANTERM_FB_ROTATE_0
+    );
+    output("that works apparently");
 
     // We're done, just hang...
     hcf();
