@@ -6,8 +6,10 @@
 #include "ft/flanterm_backends/fb.h"
 #include "font/font.h"
 #include "idt/idt.h"
+#include "utils/utils.h"
 
 struct flanterm_context *ft_ctx = NULL;
+extern const char* prompt;
 
 // Set the base revision to 4, this is recommended as this is the latest
 // base revision described by the Limine boot protocol specification.
@@ -92,31 +94,10 @@ int memcmp(const void *s1, const void *s2, size_t n) {
 
     return 0;
 }
-/* utilities and stuff */
-size_t strlen(const char *str) {
-    size_t len = 0;
-    while (str[len])
-        len++;
-    return len;
-}
 
 void output(char* str) {
     int num = strlen(str);
     flanterm_write(ft_ctx, str, num);
-}
-
-
-// Halt and catch fire function.
-static void hcf(void) {
-    for (;;) {
-#if defined (__x86_64__)
-        asm ("hlt");
-#elif defined (__aarch64__) || defined (__riscv)
-        asm ("wfi");
-#elif defined (__loongarch64)
-        asm ("idle 0");
-#endif
-    }
 }
 
 // The following will be our kernel's entry point.
@@ -165,8 +146,35 @@ void kmain(void) {
         0, FLANTERM_FB_ROTATE_0
     );
     load_idt();
-    test_idt();
-    output("handler didnt work");
+    char width_str[20];
+    char height_str[20];
+        
+    int_to_str(framebuffer->width, width_str);
+    int_to_str(framebuffer->height, height_str);
+
+    output("\033[36m"); 
+
+    output("\n\n ░▒▓███████▓▒░▒▓████████▓▒░░▒▓██████▓▒░░▒▓█▓▒░        \n");
+    output("░▒▓█▓▒░      ░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░        \n");
+    output("░▒▓█▓▒░      ░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░        Resolution: ");
+    output(width_str); output("x"); output(height_str); output("\n");
+    output(" ░▒▓██████▓▒░░▒▓██████▓▒░ ░▒▓████████▓▒░▒▓█▓▒░        \n");
+    output("       ░▒▓█▓▒░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░        SealOS version: 0.1\n");
+    output("       ░▒▓█▓▒░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░        \n");
+    output("░▒▓███████▓▒░░▒▓████████▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓████████▓▒░ Built with: GCC ");
+    output(__VERSION__); output("\n");
+    output("                                                      \n");
+    output(" ░▒▓██████▓▒░ ░▒▓███████▓▒░                           \n");
+    output("░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░                                  Build Date: ");
+    output(__DATE__); output("\n");
+    output("░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░                                  \n");
+    output("░▒▓█▓▒░░▒▓█▓▒░░▒▓██████▓▒░                            \n");
+    output("░▒▓█▓▒░░▒▓█▓▒░      ░▒▓█▓▒░                           \n");
+    output("░▒▓█▓▒░░▒▓█▓▒░      ░▒▓█▓▒░                           \n");
+    output(" ░▒▓██████▓▒░░▒▓███████▓▒░                            \n\n");
+    output("\033[0m\n"); 
+
+    output(prompt);
 
     // We're done, just hang...
     hcf();

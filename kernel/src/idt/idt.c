@@ -1,8 +1,10 @@
 #include <stdint.h>
+#include "../utils/utils.h"
 
 /* idt here */
 
 extern void *interruptTable[256];
+extern void handle_keyboard();
 void output(char* str);
 
 struct IDTEntry {
@@ -69,19 +71,6 @@ static char const* faultMessages[32] = {
     "Reserved",
 };
 
-// Halt and catch fire function.
-static void hcf(void) {
-    for (;;) {
-#if defined (__x86_64__)
-        asm ("hlt");
-#elif defined (__aarch64__) || defined (__riscv)
-        asm ("wfi");
-#elif defined (__loongarch64)
-        asm ("idle 0");
-#endif
-    }
-}
-
 void fill_idt_struct(int index, void *handler) { // split the handler's address into 3 parts and fill in the IDTEntry struct
     uint64_t address = handler;
     uint16_t low = address & 0xFFFF;
@@ -96,8 +85,46 @@ void fill_idt_struct(int index, void *handler) { // split the handler's address 
     idt[index].type_attributes = 0x8E;
 }
 
+void io_wait(void) {
+    outb(0x80, 0);
+}
+
+void remap_pic() {
+    outb(0x20, 0x11);
+    io_wait();
+    outb(0xA0, 0x11);
+    io_wait();
+    outb(0x21, 0x20);
+    io_wait();
+    outb(0xA1, 0x28);
+    io_wait();
+    outb(0x21, 0x04);
+    io_wait();
+    outb(0xA1, 0x02);
+    io_wait();
+    outb(0x21, 0x01);
+    io_wait();
+    outb(0xA1, 0x01);
+    io_wait();
+    outb(0x21, 0xFF);
+    outb(0xA1, 0xFF);
+    io_wait();
+}
+
+void byte_to_hex_str(unsigned char byte, char* buffer) {
+    const char* hex_chars = "0123456789ABCDEF";
+    buffer[0] = hex_chars[(byte >> 4) & 0xF]; // High nibble
+    buffer[1] = hex_chars[byte & 0xF];        // Low nibble
+    buffer[2] = 0;                            // Null terminator
+}
+
 void load_idt() {
+    outb(0x21, 0xFC); 
+    outb(0xA1, 0xFF);
     output("Loading IDT...\n");
+    remap_pic();
+    uint8_t mask = inb(0x21);
+    outb(0x21, mask & ~(1 << 1)); // unmask irq1
     struct IDTR idtr = {
         sizeof(idt) - 1,
         (uint64_t)&idt
@@ -106,6 +133,8 @@ void load_idt() {
     for (int i = 0; i < 256; i++) {
         fill_idt_struct(i, interruptTable[i]);
     }
+    __asm__ volatile ("sti");
+    outb(0x21, 0xFD); 
     output("IDT Loaded.\n");
 }
 
@@ -113,11 +142,11 @@ void handleInterruptAsm(struct interrupt_frame* frame) {
     if (frame->intNo < 32) {
         output("\n!!! KERNEL PANIC !!!\nException: ");
         output(faultMessages[frame->intNo]);
-        output("\nDying...");
+        output("\nDying..."); // TODO: add more debug info, wtf is this
         hcf();
     } else {
         if (frame->intNo == 33) { // irq 1
-            output("\nGot input\n");
+            handle_keyboard();
         }
     }
 }
