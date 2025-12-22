@@ -5,15 +5,15 @@ Outputting text;
 
 Getting input;
 
-Has a kernel shell;
+Has a command prompt with useful commands;
 
 Loading an IDT;
 
-Not crashing;
+Fat32 support;
 
-Runs on every 64bit PC;
+Has a bitmap memory allocator;
 
-Takes up 0 mb of space
+Cool seal logo
 
 # Building & Running
 To build, just run
@@ -22,6 +22,6 @@ To build, just run
 
 To run, use this command:
 
-``` qemu-system-x86_64 -M q35 -cdrom template-x86_64.iso -m 2G ```
+``` qemu-system-x86_64 -M pc -m 2G -drive file=fat32.img,format=raw,index=0,media=disk -drive file=template-x86_64.iso,format=raw,index=1,media=cdrom -boot order=d ```
 
 I am happy for all support and critique!
