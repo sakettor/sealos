@@ -130,7 +130,7 @@ void exec(const char *str) {
         cmd_cleanup();
     }
     if (!strcmp(argv[0], "help")) {
-        output("help, create, mkdir, dir, edit, cd, read, ;\n");
+        output("help, create, mkdir, dir, edit, cd, read, <filename>.txt for run\n");
         cmd_cleanup();
         return;
     }
