@@ -17,6 +17,7 @@ uint8_t* bmap_virt_addr = 0;
 uint64_t bmap_in_bytes = 0;
 extern char* command_buf;
 extern char* doc_buf;
+extern char* folder_name;
 
 // Set the base revision to 4, this is recommended as this is the latest
 // base revision described by the Limine boot protocol specification.
@@ -282,6 +283,7 @@ void kmain(void) {
     output("\033[36m\n"); 
     command_buf = malloc(); // using the bitmap finally
     doc_buf = malloc(); // for editing
+    folder_name = malloc(); // for path names
     cmd_cleanup();
 
     // We're done, just hang...

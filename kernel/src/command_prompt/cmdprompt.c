@@ -25,7 +25,7 @@ char* command_buf = 0;
 char* doc_buf = 0;
 int cursor_pos = 0;
 const char* prompt = "\033[32mS:/";
-char folder_name[20] = " ";
+char* folder_name = 0;
 int at_root = 1;
 int editor_mode = 0;
 int editor_clust = 0;
@@ -76,7 +76,6 @@ void cmd_cleanup() {
     output(prompt);
     if (at_root == 0) {
         output(folder_name);
-        output("/");
     }
     output(" \033[0m");
 }
@@ -128,7 +127,7 @@ void exec(const char *str) {
         cmd_cleanup();
         return;
     }
-    if (!strcmp(argv[0], "ls")) {
+    if (!strcmp(argv[0], "dir")) {
         fat_ls(current_clust);
         output("\n");
         cmd_cleanup();
@@ -176,7 +175,8 @@ void exec(const char *str) {
         }
         current_clust = res.cluster;
         at_root = 0;
-        strcpy(folder_name, argv[1]);
+        strcat(folder_name, argv[1]);
+        folder_name[strlen(folder_name)] = '/';
         output("\n");
         cmd_cleanup();
         return;
