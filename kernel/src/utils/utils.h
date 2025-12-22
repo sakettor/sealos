@@ -13,3 +13,4 @@ void outw(uint16_t port, uint16_t value);
 void strcpy(char dest[], const char source[]);
 int atoi(char *p);
 char *strcat(char *dest, const char *src);
+char* strchr(const char* s, int c);

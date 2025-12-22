@@ -30,6 +30,8 @@ int at_root = 1;
 int editor_mode = 0;
 int editor_clust = 0;
 char filename[10];
+char echo_buf[100];
+int bash_mode = 0;
 
 
 unsigned char keyboard[128] = {
@@ -73,6 +75,9 @@ void cmd_cleanup() {
     if (editor_mode == 1) {
         return;
     }
+    if (bash_mode == 1) {
+        return;
+    }
     output(prompt);
     if (at_root == 0) {
         output(folder_name);
@@ -97,10 +102,35 @@ void editor() {
 
 /* command execution */
 void exec(const char *str) {
+    const char *p = str;
+    while (*p == ' ') p++;
+
+    if (*p == ';') {
+        p++;
+        while (*p == ' ') p++;
+        if (*p == '\0') {
+            output("No input after ;\n");
+            return;
+        }
+        char loop_cmd[256]; 
+        int i = 0;
+        while (p[i] != '\0' && i < 255) {
+            loop_cmd[i] = p[i];
+            i++;
+        }
+        loop_cmd[i] = '\0';
+        while (1) {
+            exec(loop_cmd);
+        }
+        return;
+    }
     parse_command(str);
     output("\n");
+    if (argv[0] == NULL) {
+        cmd_cleanup();
+    }
     if (!strcmp(argv[0], "help")) {
-        output("Commands: help\n");
+        output("help, create, mkdir, dir, edit, cd, read, ;\n");
         cmd_cleanup();
         return;
     }
@@ -110,6 +140,8 @@ void exec(const char *str) {
             cmd_cleanup();
             return;
         }
+        char* content = 0;
+        content = malloc();
         fat_create_file(argv[1], argv[2]);
         output("\n");
         cmd_cleanup();
@@ -133,6 +165,20 @@ void exec(const char *str) {
         cmd_cleanup();
         return;
     }
+    if (!strcmp(argv[0], "echo")) {
+        if (argv[1] == NULL) {
+            output("No input.\n");
+            cmd_cleanup();
+            return;
+        }
+        for (int i = 1; i < argc; i++) {
+            output(argv[i]);
+            output(" ");
+        }
+        output("\n");
+        cmd_cleanup();
+        return;
+    }
     if (!strcmp(argv[0], "edit")) {
         if (argv[1] == NULL) {
             output("No input.\n");
@@ -142,6 +188,12 @@ void exec(const char *str) {
         strcpy(filename, argv[1]);
         editor();
         cmd_cleanup();
+        return;
+    }
+    if (!strcmp(argv[0], "reboot")) {
+        int a = 0;
+        __asm__ volatile ("lidt %0" : : "m"(a));
+        __asm__ volatile ("int $2");
         return;
     }
     if (!strcmp(argv[0], "cd")) {
@@ -187,14 +239,44 @@ void exec(const char *str) {
             cmd_cleanup();
             return;
         }
-        output("Reading cluster number ");
-        output(argv[1]);
-        output("\n");
         int cluster = atoi(argv[1]);
         memset(disk_buffer, 0, 512);
         fat_read_cluster(cluster, 1);
         output(disk_buffer);
         output("\n");
+        cmd_cleanup();
+        return;
+    }
+    struct SearchResults result = fat_search(argv[0]);
+    if (result.success == 1) {
+        bash_mode = 1;
+        int cluster = result.cluster;
+        char* script_data = 0;
+        script_data = malloc();
+        memset(disk_buffer, 0, 512);
+        fat_read_cluster(cluster, 1);
+        strcpy(script_data, disk_buffer);
+
+        char *line = script_data;
+        char *next_line;
+
+        while (line != NULL && *line != '\0') {
+            next_line = strchr(line, '\n'); 
+            if (next_line) {
+                *next_line = '\0'; 
+                next_line++;
+            }
+
+            char *r = strchr(line, '\r');
+            if (r) *r = '\0';
+
+            if (*line != '\0') {
+                exec(line); 
+            }
+
+            line = next_line;
+        }
+        bash_mode = 0;
         cmd_cleanup();
         return;
     }
