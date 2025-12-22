@@ -8,9 +8,53 @@ unsigned char inb(uint16_t port) {
     return result;
 }
 
+unsigned char inw(uint16_t port) {
+    uint16_t result;
+    __asm__ volatile ("inw %1, %0" : "=a"(result) : "Nd"(port));
+    return result;
+}
+
 void outb(uint16_t port, uint8_t data) {
     __asm__ volatile ("outb %0, %1" : : "a"(data), "Nd"(port));
 }
+
+void outw(uint16_t port, uint16_t value) {
+    __asm__ volatile (
+        "outw %0, %1" 
+        :
+        : "a"(value),
+          "Nd"(port)
+    );
+}
+
+void strcpy(char dest[], const char source[]) 
+{
+    int i = 0;
+    while ((dest[i] = source[i]) != '\0')
+    {
+        i++;
+    } 
+}
+
+int atoi(char *p) {
+    int k = 0;
+    while (*p) {
+        k = (k << 3) + (k << 1) + (*p) - '0';
+        p++;
+     }
+     return k;
+}
+
+char *strncpy(char *dst, const char *src, size_t n)
+{
+   int i;
+   char *temp;
+   temp = dst;  
+   for (i = 0; i < n; i++)
+      *dst++ = *src++;
+   return temp;
+}
+
 void reverse(char* str, int length) {
     int start = 0;
     int end = length - 1;
