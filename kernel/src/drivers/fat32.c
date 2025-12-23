@@ -154,7 +154,8 @@ void fat_overwrite_file(int cluster, char *data, int entry) {
     fat_write_cluster(current_clust, dir_buffer);
 }
 
-void fat_create_file(char *filename, char *data) {
+void fat_create_file(char *filename, char *data, char *extension) {
+  int ext_included = 0;
   char blyat[12];
   for (int o = 0; o < 11; o++) {
     blyat[o] = 0x20;
@@ -175,6 +176,15 @@ void fat_create_file(char *filename, char *data) {
     fat_overwrite_file(rslt.cluster, data, rslt.entry);
     return;
   }
+  blyat[7] = '.';
+  blyat[8] = 'i';
+  blyat[9] = 's';
+  blyat[10] = 'l';
+  rslt = fat_search(blyat);
+  if (rslt.success == 1) {
+    fat_overwrite_file(rslt.cluster, data, rslt.entry);
+    return;
+  }
   int free_cluster = fat_find_free_cluster();
   fat_read_cluster(current_clust, 3);
   for (int i = 0; i < 16; i++) {
@@ -190,13 +200,23 @@ void fat_create_file(char *filename, char *data) {
             dir_buffer[entry_start+o] = filename[o];
         }
         dir_buffer[entry_start+7] = '.';
-        dir_buffer[entry_start+8] = 't';
-        dir_buffer[entry_start+9] = 'x';
-        dir_buffer[entry_start+10] = 't';
+        if (extension[0] == NULL) {
+          dir_buffer[entry_start+8] = 't';
+          dir_buffer[entry_start+9] = 'x';
+          dir_buffer[entry_start+10] = 't';
+        } else {
+          dir_buffer[entry_start+8] = extension[0];
+          dir_buffer[entry_start+9] = extension[1];
+          dir_buffer[entry_start+10] = extension[2];
+        }
         dir_buffer[entry_start + 11] = 0x20;
         dir_buffer[entry_start + 26] = free_cluster;
         dir_buffer[entry_start + 27] = 0;
-        dir_buffer[entry_start + 28] = strlen(data);
+        uint32_t size = strlen(data);
+        dir_buffer[entry_start + 28] = (size & 0xFF);
+        dir_buffer[entry_start + 29] = (size >> 8) & 0xFF;
+        dir_buffer[entry_start + 30] = (size >> 16) & 0xFF;
+        dir_buffer[entry_start + 31] = (size >> 24) & 0xFF;
         dir_buffer[entry_start + 30] = 0;
         dir_buffer[entry_start + 31] = 0;
         fat_write_cluster(current_clust, dir_buffer);
@@ -274,5 +294,10 @@ void fat32_init() {
     map_start = res_sect;
     data_start = res_sect + (num_of_fats * spf);
     current_clust = root_clust;
+    output("SPC: ");
+    char spc_str[10];
+    int_to_str(spc, spc_str);
+    output(spc_str);
+    output("\n");
     output("Fat32 initialized.\n");
 }

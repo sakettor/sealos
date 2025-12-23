@@ -95,9 +95,42 @@ void *format(char *str, char *buffer) {
 }
 
 void editor() {
-    output("\033[2J\033[HSEALOS BUILTIN EDITOR\n--------------------------------------------------\n");
+    output("\033[2J\033[HSEALOS BUILTIN EDITOR\n\n");
+    output("Editing: ");
+    output(filename);
+    output("\n-------------------------------------------------\n");
     editor_mode = 1;
     cursor_pos = 0;
+}
+
+void isl_run(int cluster) {
+    bash_mode = 1;
+    char* script_data[4096];
+    memset(disk_buffer, 0, 512);
+    fat_read_cluster(cluster, 1);
+    strcpy(script_data, disk_buffer);
+
+    char *line = script_data;
+    char *next_line;
+
+    while (line != NULL && *line != '\0') {
+        next_line = strchr(line, '\n'); 
+        if (next_line) {
+            *next_line = '\0'; 
+            next_line++;
+        }
+
+        char *r = strchr(line, '\r');
+        if (r) *r = '\0';
+
+        if (*line != '\0') {
+            exec(line); 
+        }
+
+        line = next_line;
+    }
+    bash_mode = 0;
+    return;
 }
 
 /* command execution */
@@ -130,7 +163,7 @@ void exec(const char *str) {
         cmd_cleanup();
     }
     if (!strcmp(argv[0], "help")) {
-        output("help, create, mkdir, dir, edit, cd, read, <filename>.txt for run\n");
+        output("help, create, mkdir, dir, edit, cd, read, isl\n");
         cmd_cleanup();
         return;
     }
@@ -140,9 +173,7 @@ void exec(const char *str) {
             cmd_cleanup();
             return;
         }
-        char* content = 0;
-        content = malloc();
-        fat_create_file(argv[1], argv[2]);
+        fat_create_file(argv[1], argv[2], "txt");
         output("\n");
         cmd_cleanup();
         return;
@@ -159,9 +190,52 @@ void exec(const char *str) {
         cmd_cleanup();
         return;
     }
+    if (!strcmp(argv[0], "isl")) {
+        if (argv[1] == NULL) {
+            output("ISL V0.1 | Interpreted Script Language for SealOS\nAvailable options: init <filename> (creates a void script), run <cluster> (runs the script located at the specified cluster)\n");
+            cmd_cleanup();
+            return;
+        }
+        if (!strcmp(argv[1], "init")) {
+            if (argv[2] == NULL) {
+                output("Please provide a filename.\n");
+                cmd_cleanup();
+                return;
+            }
+            fat_create_file(argv[2], "echo Hello world!", "isl");
+            cmd_cleanup();
+            return;
+        }
+        if (!strcmp(argv[1], "run")) {
+            if (argv[2] == NULL) {
+                output("Please provide a cluster number of the ISL file that shows up in 'dir' command.\n");
+                cmd_cleanup();
+                return;
+            }
+            int cluster = atoi(argv[2]);
+            isl_run(cluster);
+            cmd_cleanup();
+            return;
+        }
+        output("ISL V0.1 | Interpreted Script Language for SealOS\nAvailable options: init <filename> (creates a void script), run <cluster> (runs the script located at the specified cluster)\n");
+        cmd_cleanup();
+        return;
+    }
     if (!strcmp(argv[0], "dir")) {
         fat_ls(current_clust);
         output("\n");
+        cmd_cleanup();
+        return;
+    }
+    if (!strcmp(argv[0], "sleep")) {
+        volatile uint64_t smth = 0;
+        uint64_t wait = 300000000;
+        for(uint64_t i=0; i<wait; i++) {
+            smth++;
+        };
+        if (smth == 676767) {
+            smth++;
+        }
         cmd_cleanup();
         return;
     }
@@ -247,39 +321,6 @@ void exec(const char *str) {
         cmd_cleanup();
         return;
     }
-    struct SearchResults result = fat_search(argv[0]);
-    if (result.success == 1) {
-        bash_mode = 1;
-        int cluster = result.cluster;
-        char* script_data = 0;
-        script_data = malloc();
-        memset(disk_buffer, 0, 512);
-        fat_read_cluster(cluster, 1);
-        strcpy(script_data, disk_buffer);
-
-        char *line = script_data;
-        char *next_line;
-
-        while (line != NULL && *line != '\0') {
-            next_line = strchr(line, '\n'); 
-            if (next_line) {
-                *next_line = '\0'; 
-                next_line++;
-            }
-
-            char *r = strchr(line, '\r');
-            if (r) *r = '\0';
-
-            if (*line != '\0') {
-                exec(line); 
-            }
-
-            line = next_line;
-        }
-        bash_mode = 0;
-        cmd_cleanup();
-        return;
-    }
     output("\033[31mCommand not found: ");
     output(argv[0]);
     output("\033[0m\n");
@@ -306,6 +347,7 @@ void handle_keyboard() {
             editor_mode = 0;
             output("\n");
             fat_create_file(filename, doc_buf);
+            output("\033[2J\033[H");
             cmd_cleanup(); // get out of the editor
             outb(0x20, 0x20);
             return;
